@@ -1,4 +1,4 @@
-function generarCombinaciones(n) {
+/*function generarCombinaciones(n) {
   const filas = Math.pow(2, n);
   const combinaciones = [];
 
@@ -55,4 +55,4 @@ function generarTabla() {
   resultadoHTML += "</tbody></table>";
 
   document.getElementById("tabla").innerHTML = resultadoHTML;
-}
+}*/

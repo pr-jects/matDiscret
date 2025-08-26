@@ -1,95 +1,174 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Generador de Tablas de Verdad</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <div class="contenedor">
-      <h1>Generador de Tablas de Verdad</h1>
-      <label for="variables">Número de variables:</label>
-      <select id="variables">
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-      </select>
 
-      <label for="operador">Operador lógico:</label>
-      <select id="operador">
-        <option value="Y">Conjunción (A ∧ B)</option>
-        <option value="O">Disyunción (A ∨ B)</option>
-        <option value="XOR">Disyunción exclusiva (A ⊻ B)</option>
-        <option value="COND">Condicional (A → B)</option>
-        <option value="BICOND">Bicondicional (A ↔ B)</option>
-      </select>
+<head>
+  <meta charset="UTF-8" />
+  <title>Generador de Tablas de Verdad</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
 
-      <button onclick="generarTabla()">Generar tabla</button>
+<body>
+  <div class="contenedor">
+    <h1>Generador de Tablas de Verdad</h1>
 
-      <div id="tabla"></div>
+    <label for="variables">Número de variables:</label>
+    <select id="variables">
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+    </select>
 
-      <script>
-        function generarCombinaciones(n) {
-          const filas = Math.pow(2, n);
-          const combinaciones = [];
+    <label for="operador">Operador lógico:</label>
+    <select id="operador">
+      <option value="Y">Conjunción (A ∧ B)</option>
+      <option value="O">Disyunción (A ∨ B)</option>
+      <option value="XOR">Disyunción exclusiva (A ⊻ B)</option>
+      <option value="COND">Condicional (A → B)</option>
+      <option value="BICOND">Bicondicional (A ↔ B)</option>
+    </select>
 
-          for (let i = 0; i < filas; i++) {
-            const bin = i.toString(2).padStart(n, "0").split("").map(Number);
-            combinaciones.push(bin);
+    <button onclick="generarTabla()">Generar tabla</button>
+
+    <div id="tabla"></div>
+
+    <script>
+      "use strict"; // Activa el modo estricto: ayuda a detectar errores (por ejemplo, variables no declaradas).
+
+      // ================================================================
+      // Genera todas las combinaciones posibles de n variables en "V"/"F"
+      // - Orden de bits: el más significativo (izquierda) es "A"
+      //   ⇒ "A" cambia más lento, "B" un poco más rápido, etc.
+      // - Retorna un arreglo de filas, p.ej. para n=2:
+      //   [ ["F","F"], ["F","V"], ["V","F"], ["V","V"] ]
+      // ================================================================
+      function generarCombinaciones(n) {
+        const filas = Math.pow(2, n);     // Número total de filas en la tabla: 2^n
+        const combinaciones = [];         // Acumulará cada combinación en formato V/F
+
+        for (let i = 0; i < filas; i++) { // Recorre desde 0 hasta 2^n - 1
+          // Convierte i a binario, lo rellena a n dígitos y lo separa en caracteres
+          const bin = i.toString(2).padStart(n, "0").split("");
+          // Mapea cada dígito binario: "1" → "V", "0" → "F"
+          const filaVF = bin.map((b) => (b === "1" ? "V" : "F"));
+          // Agrega la fila resultante (por ejemplo: ["F","V","V"])
+          combinaciones.push(filaVF);
+        }
+        return combinaciones;             // Devuelve todas las filas V/F
+      }
+
+      // ================================================================
+      // Utilidad: convierte el símbolo "V"/"F" a booleano true/false.
+      // "V" → true, cualquier otro valor (incluida "F") → false
+      // ================================================================
+      const aBool = (v) => v === "V";
+
+      // ================================================================
+      // Evalúa el operador lógico seleccionado sobre TODAS las variables
+      // de la fila (2, 3 o 4 variables según la selección del usuario).
+      //
+      // op: "Y" | "O" | "XOR" | "COND" | "BICOND"
+      // filaVF: array como ["V","F","V"] para esa combinación.
+      //
+      // Definiciones:
+      // - Y (AND n-aria): V si TODAS son V.
+      // - O (OR  n-aria): V si ALGUNA es V.
+      // - XOR n-aria:     V si el número de V es IMPAR (paridad).
+      // - COND encadenada: A→B→C→…  es V si para todo i, (¬Xi ∨ Xi+1) es V.
+      // - BICOND encad.:   A↔B↔C↔…  es V si todas son iguales entre sí.
+      // ================================================================
+      function evaluarOperacion(op, filaVF) {
+        // Convierte ["V","F","V"] a [true, false, true] para operar cómodamente
+        const bs = filaVF.map(aBool);
+
+        switch (op) {
+          case "Y": {
+            // Conjunción n-aria: true si TODOS los elementos son true
+            // .every(Boolean) aplica Boolean(x) a cada elemento y exige que todos sean truthy
+            return bs.every(Boolean) ? "V" : "F";
           }
-
-          return combinaciones;
-        }
-
-        function evaluarOperacion(op, val1, val2) {
-          switch (op) {
-            case "Y":
-              return val1 && val2;
-            case "O":
-              return val1 || val2;
-            case "X O R":
-              return val1 !== val2;
-            case "COND":
-              return !val1 || val2;
-            case "BICOND":
-              return val1 === val2;
-            default:
-              return false;
+          case "O": {
+            // Disyunción n-aria: true si ALGÚN elemento es true
+            return bs.some(Boolean) ? "V" : "F";
           }
+          case "XOR": {
+            // Disyunción exclusiva n-aria: cuenta cuántos true hay y verifica si es IMPAR
+            const countV = bs.reduce((acc, b) => acc + (b ? 1 : 0), 0);
+            return countV % 2 === 1 ? "V" : "F";
+          }
+          case "COND": {
+            // Condicional encadenada A→B→C→...:
+            // Es equivalente a exigir (¬A ∨ B) ∧ (¬B ∨ C) ∧ ...
+            // Caso base: con 0 o 1 variable, lo tomamos como verdadero por convención
+            if (bs.length <= 1) return "V";
+            for (let i = 0; i < bs.length - 1; i++) {
+              // Si falla alguna implicación Xi→Xi+1 (i.e., Xi es true y Xi+1 es false), es F
+              if (!(!bs[i] || bs[i + 1])) return "F";
+            }
+            return "V";
+          }
+          case "BICOND": {
+            // Bicondicional encadenada A↔B↔C↔...:
+            // Exige que todos los valores sean iguales (todas V o todas F)
+            if (bs.length <= 1) return "V"; // Convención para 0 o 1 variable
+            for (let i = 0; i < bs.length - 1; i++) {
+              if (bs[i] !== bs[i + 1]) return "F"; // Si alguna pareja difiere, todo es F
+            }
+            return "V";
+          }
+          default:
+            // Si el operador no coincide (defensivo), devuelve F
+            return "F";
         }
+      }
 
-        function generarTabla() {
-          const numVars = parseInt(document.getElementById("variables").value);
-          const operador = document.getElementById("operador").value;
-          const combinaciones = generarCombinaciones(numVars);
+      // ================================================================
+      // Construye la tabla HTML y la inserta en el <div id="tabla">
+      // - Lee n y el operador del DOM.
+      // - Genera todas las combinaciones en V/F.
+      // - Evalúa el resultado para cada fila.
+      // - Pinta la tabla con columnas A..D (según n) + Resultado.
+      // ================================================================
+      function generarTabla() {
+        // Lee número de variables (2, 3 o 4) y lo parsea en base 10
+        const numVars = parseInt(document.getElementById("variables").value, 10);
+        // Lee el operador seleccionado (string exacto del <option value="...">)
+        const operador = document.getElementById("operador").value;
 
-          const variables = ["A", "B", "C", "D"].slice(0, numVars);
-          let resultadoHTML = "<table><thead><tr>";
+        // Obtiene todas las combinaciones en símbolos V/F para n variables
+        const combinaciones = generarCombinaciones(numVars);
 
-          variables.forEach((v) => {
-            resultadoHTML += `<th>${v}</th>`;
-          });
+        // Nombres de columnas para variables: toma las primeras n etiquetas
+        const variables = ["A", "B", "C", "D"].slice(0, numVars);
 
-          resultadoHTML += `<th>Resultado</th></tr></thead><tbody>`;
+        // Empieza a construir el HTML de la tabla (cabecera)
+        let html = "<table><thead><tr>";
+        // Inserta los <th> de A..(n)
+        variables.forEach((v) => (html += `<th>${v}</th>`));
+        // Inserta la columna de Resultado
+        html += "<th>Resultado</th></tr></thead><tbody>";
 
-          combinaciones.forEach((fila) => {
-            resultadoHTML += "<tr>";
-            fila.forEach((v) => {
-              resultadoHTML += `<td>${v}</td>`;
-            });
+        // Por cada combinación, crea una fila con celdas V/F y su resultado
+        combinaciones.forEach((fila) => {
+          html += "<tr>";
 
-            // Evaluamos la operación lógica solo sobre las dos primeras variables (A y B)
-            const resultado = evaluarOperacion(operador, fila[0], fila[1])
-              ? 1
-              : 0;
-            resultadoHTML += `<td>${resultado}</td></tr>`;
-          });
+          // Celdas de variables (V/F)
+          fila.forEach((v) => (html += `<td>${v}</td>`));
 
-          resultadoHTML += "</tbody></table>";
+          // Evalúa la fila completa con el operador elegido
+          const res = evaluarOperacion(operador, fila);
 
-          document.getElementById("tabla").innerHTML = resultadoHTML;
-        }
-      </script>
-    </div>
-  </body>
+          // Celda de resultado
+          html += `<td>${res}</td></tr>`;
+        });
+
+        // Cierra la tabla
+        html += "</tbody></table>";
+
+        // Inserta el HTML generado dentro del contenedor <div id="tabla">
+        document.getElementById("tabla").innerHTML = html;
+      }
+    </script>
+  </div>
+</body>
+
 </html>
